@@ -1,17 +1,15 @@
-import discord
-from discord.ext import commands
-import asyncio, youtube_dl
-import yt_dlp as youtube_dl
 import nextcord
 from nextcord.ext import commands
+import asyncio, youtube_dl
+import yt_dlp as youtube_dl
 from nextcord import Interaction, SlashOption, ChannelType
 from nextcord.abc import GuildChannel
 
 # 봇의 프리픽스 설정 (명령어 앞에 붙는 기호)
-intents = discord.Intents.default()
+intents = nextcord.Intents.default()
 intents.message_content = True  # 메시지 내용 접근 권한
 
-bot = commands.Bot(command_prefix=commands.when_mentioned_or("!") and "!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # 봇이 준비되었을 때 실행되는 이벤트
 @bot.event
@@ -34,7 +32,7 @@ async def on_ready():
                  
 @bot.command()
 async def 따라하기(ctx, *, text): ## 사용자 말 따라하는 봇
-    await ctx.send(embed = discord.Embed(title= '따라하기', description= text, color = 0x00ff00))
+    await ctx.send(embed = nextcord.Embed(title= '따라하기', description= text, color = 0x00ff00))
 
 @bot.command()
 async def 들어와(ctx): ## 봇 음성채널 들어오게 하는 코드
@@ -139,7 +137,7 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
             await ctx.voice_client.disconnect()
 
 
-    @commands.command(aliases=['노래'])
+    @commands.command(aliases=['노래'])        #(실행 명령어 !노래URL)
     async def play(self, ctx, *, url):
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
@@ -168,7 +166,7 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
         embed = nextcord.Embed(title=f"볼륨을 {volume}%으로 변경되었습니다.",  color=nextcord.Color(0x0040FF))
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['삭제'])
+    @commands.command(aliases=['삭제'])     #노래 삭제
     async def stop(self, ctx):
 
         await ctx.voice_client.disconnect()  # 음성채팅에서 나가는 코드
@@ -183,7 +181,7 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
             embed = nextcord.Embed(title="현재 재생 중인 곡이 없습니다.", color=nextcord.Color(0xFF0000))
             await ctx.send(embed=embed)
 
-    @commands.command(aliases=['중지'])
+    @commands.command(aliases=['중지'])    #노래 중지 
     async def pause(self, ctx):
 
 
@@ -216,7 +214,7 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 
-    @commands.command(aliases=['목록'])
+    @commands.command(aliases=['목록'])    #대기열 노래 목록 보기
     async def queue(self, ctx):
         if self.queue:
             queue_titles = '\n'.join(f'{idx + 1}. {song.title}' for idx, song in enumerate(self.queue))
@@ -225,7 +223,7 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
             embed = nextcord.Embed(title='대기열이 비어 있습니다.', color=nextcord.Color(0xFF0000))
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['추가'])
+    @commands.command(aliases=['추가'])    #대기열에 노래 추가
     async def add(self, ctx, *, url):
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
