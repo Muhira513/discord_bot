@@ -153,19 +153,6 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
                 embed = nextcord.Embed(title=f'대기열에 추가됨: {player.title}', color=nextcord.Color(0x00ff00))
                 await ctx.send(embed=embed)
 
-
-    @commands.command(aliases=['볼륨'])
-    async def volume(self, ctx, volume: int):
-
-
-        if ctx.voice_client is None:
-            embed = nextcord.Embed(title="음성 채널에 연결되지 않았습니다.",  color=nextcord.Color(0xFF0000))
-            return await ctx.send(embed=embed)
-
-        ctx.voice_client.source.volume = volume / 100  # 볼륨변경코드
-        embed = nextcord.Embed(title=f"볼륨을 {volume}%으로 변경되었습니다.",  color=nextcord.Color(0x0040FF))
-        await ctx.send(embed=embed)
-
     @commands.command(aliases=['삭제'])     #노래 삭제
     async def stop(self, ctx):
 
