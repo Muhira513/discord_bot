@@ -1,13 +1,17 @@
 import nextcord
 from nextcord.ext import commands
-import asyncio, youtube_dl
+import asyncio
 import yt_dlp as youtube_dl
 from nextcord import Interaction, SlashOption, ChannelType
 from nextcord.abc import GuildChannel
+import os
 
-# 봇의 프리픽스 설정 (명령어 앞에 붙는 기호)
+print(nextcord.opus.is_loaded())
+
+# 봇의 프리픽스와 인텐트 설정
 intents = nextcord.Intents.default()
-intents.message_content = True  # 메시지 내용 접근 권한
+intents.message_content = True 
+intents.voice_states = True # 음성 채널 상태를 감지하기 위해 필요
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -16,67 +20,39 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f'로그인 성공! {bot.user} 님이 온라인 상태입니다.')
     await bot.change_presence(status=nextcord.Status.online, activity=nextcord.Game(name="디버그"))
-        # 사용자 지정 상태 설정법
-        # status=nextcord.Status.online      (온라인)
-        # status=nextcord.Status.idle        (자리 비움)
-        # status=nextcord.Status.dnd         (다른 용무)
-        # status=nextcord.Status.offline     (오프라인)
-        #
-        #   ~~하는 중 등 상태 설정법
-        # activity=nextcord.Game(name="하는 중")
-        # activity=nextcord.Streaming(name="방송 중", url="올리고 싶은 URL")
-        # activity=nextcord.Activity(type=nextcord.ActivityType.listening, name="듣는 중")
-        # activity=nextcord.Activity(type=nextcord.ActivityType.watching, name="시청 중")
+    
+    # 윈도우 터미널 인코딩 문제 해결 (한글 깨짐 방지)
+    os.system("chcp 65001")
 
 # 간단한 명령어 예시
-                 
 @bot.command()
 async def 따라하기(ctx, *, text): ## 사용자 말 따라하는 봇
     await ctx.send(embed = nextcord.Embed(title= '따라하기', description= text, color = 0x00ff00))
 
-@bot.command()
-async def 들어와(ctx): ## 봇 음성채널 들어오게 하는 코드
-    try: ##유저가 접속한 코드
-        global vc
-        vc = await ctx.message.author.voice.channel.connect()
-    except:
-        try:##유저가 접속하지 않으면 있는지 확인하는 코드
-            await vc.move_to(ctx.message.author.voice.channel)
-        except: ##유저가 없다고 출력하는 메시지 코드
-            await ctx.send("채널에 유저가 접속하지 않았습니다.")    
-
-@bot.command()
-async def 나가(ctx):
-    try:
-        await vc.disconnect()
-    except:
-        await ctx.send("채널에 속해 있지 않습니다.")
-
 @bot.command(aliases=['입장'])
-async def join(ctx):
+async def 들어와(ctx):
     if ctx.author.voice and ctx.author.voice.channel:
-        channel = ctx.author.voice.channel      # 입장코드
-        await channel.connect()
-        print("음성 채널 정보: {0.author.voice}".format(ctx))
-        print("음성 채널 이름: {0.author.voice.channel}".format(ctx))
+        channel = ctx.author.voice.channel
+        try:
+            await channel.connect()
+            await ctx.send(f"**{channel.name}** 채널에 연결되었습니다.")
+        except asyncio.TimeoutError:
+            embed = nextcord.Embed(title='연결 시간 초과', description='음성 채널 연결에 실패했습니다. 네트워크 상태나 봇 권한을 확인해주세요.', color=nextcord.Color.red())
+            await ctx.send(embed=embed)
     else:
-        embed = nextcord.Embed(title='음성 채널에 유저가 존재하지 않습니다.',  color=nextcord.Color(0xFF0000))
+        embed = nextcord.Embed(title='음성 채널에 유저가 존재하지 않습니다.', color=nextcord.Color.red())
         await ctx.send(embed=embed)
- 
-@bot.command(aliases=['퇴장'])
+
+@bot.command(aliases=['나가', '퇴장'])
 async def out(ctx):
-    try:
-        await ctx.voice_client.disconnect()   #퇴장 코드
-    except AttributeError as not_found_channel:
-        embed = nextcord.Embed(title='봇이 존재하는 채널을 찾지 못하였습니다.',  color=nextcord.Color(0xFF0000))
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("음성 채널에서 퇴장했습니다.")
+    else:
+        embed = nextcord.Embed(title='봇이 음성 채널에 연결되어 있지 않습니다.', color=nextcord.Color.red())
         await ctx.send(embed=embed)
 
-
-
-
-youtube_dl.utils.bug_reports_message = lambda: ''
-
-
+# youtube_dl.utils.bug_reports_message = lambda: ''  <--- 이 줄을 삭제했습니다.
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -89,7 +65,7 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0',  # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0',
 }
 
 ffmpeg_options = {
@@ -102,27 +78,23 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 class YTDLSource(nextcord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
-
         self.data = data
-
         self.title = data.get('title')
         self.url = data.get('url')
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
         loop = loop or asyncio.get_event_loop()
+        # yt-dlp의 정보 추출은 느릴 수 있으므로 executor에서 실행
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
 
         if 'entries' in data:
-            # take first item from a playlist
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(nextcord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
-
-
-class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
+class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.queue = []
@@ -131,102 +103,88 @@ class Music(commands.Cog): #음악 재생을 위한 코드(클래스)
         if self.queue:
             player = self.queue.pop(0)
             ctx.voice_client.play(player, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop))
-            embed = nextcord.Embed(title=f'현재 재생중인 음악: {player.title}', color=nextcord.Color(0xF3F781))
+            embed = nextcord.Embed(title=f'현재 재생중인 음악: {player.title}', color=nextcord.Color.yellow())
             await ctx.send(embed=embed)
         else:
-            await ctx.voice_client.disconnect()
+            await asyncio.sleep(60) # 60초간 대기 후, 여전히 대기열이 비어있으면 퇴장
+            if not self.queue and ctx.voice_client and not ctx.voice_client.is_playing():
+                await ctx.voice_client.disconnect()
+                await ctx.send("대기열이 비어있어 채널에서 나갑니다. 👋")
 
-
-    @commands.command(aliases=['노래'])        #(실행 명령어 !노래URL)
+    @commands.command(aliases=['노래'])
     async def play(self, ctx, *, url):
+        vc = ctx.voice_client
+        if not vc:
+            if not ctx.author.voice:
+                await ctx.send("음성 채널에 먼저 연결해주세요.")
+                return
+            try:
+                # 봇 연결 시도
+                vc = await ctx.author.voice.channel.connect()
+            except asyncio.TimeoutError:
+                embed = nextcord.Embed(title='연결 시간 초과', description='음성 채널 연결에 실패했습니다. 네트워크 상태나 봇 권한을 확인해주세요.', color=nextcord.Color.red())
+                await ctx.send(embed=embed)
+                return
+
+        # FFmpeg/yt-dlp를 사용하여 오디오 정보 추출
         async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
-            if ctx.voice_client is None:
-                await ctx.author.voice.channel.connect()
-
-            if not ctx.voice_client.is_playing():
-                ctx.voice_client.play(player, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop))
-                embed = nextcord.Embed(title=f'현재 재생중인 음악: {player.title}', color=nextcord.Color(0xF3F781))
+            try:
+                player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+            except Exception as e:
+                embed = nextcord.Embed(title='음악 로드 실패', description=f'유튜브 정보를 가져오는 데 실패했습니다. 링크를 확인하거나 yt-dlp를 업데이트해주세요. (오류: {e})', color=nextcord.Color.red())
                 await ctx.send(embed=embed)
-            else:
-                self.queue.append(player)
-                embed = nextcord.Embed(title=f'대기열에 추가됨: {player.title}', color=nextcord.Color(0x00ff00))
-                await ctx.send(embed=embed)
+                return
 
-    @commands.command(aliases=['삭제'])     #노래 삭제
-    async def stop(self, ctx):
 
-        await ctx.voice_client.disconnect()  # 음성채팅에서 나가는 코드
+        if vc.is_playing() or vc.is_paused():
+            self.queue.append(player)
+            embed = nextcord.Embed(title=f'대기열에 추가됨: {player.title}', color=nextcord.Color.green())
+            await ctx.send(embed=embed)
+        else:
+            vc.play(player, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop))
+            embed = nextcord.Embed(title=f'현재 재생중인 음악: {player.title}', color=nextcord.Color.yellow())
+            await ctx.send(embed=embed)
 
     @commands.command(aliases=['스킵'])
     async def skip(self, ctx):
-        if ctx.voice_client.is_playing():
+        if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.stop()
-            embed = nextcord.Embed(title="다음 곡으로 건너뜁니다.", color=nextcord.Color(0x00ff00))
+            embed = nextcord.Embed(title="다음 곡으로 건너뜁니다. ⏩", color=nextcord.Color.green())
             await ctx.send(embed=embed)
         else:
-            embed = nextcord.Embed(title="현재 재생 중인 곡이 없습니다.", color=nextcord.Color(0xFF0000))
+            embed = nextcord.Embed(title="현재 재생 중인 곡이 없습니다. 🤷‍♂️", color=nextcord.Color.red())
             await ctx.send(embed=embed)
 
-    @commands.command(aliases=['중지'])    #노래 중지 
+    @commands.command(aliases=['중지'])
     async def pause(self, ctx):
-
-
-        if ctx.voice_client.is_paused() or not ctx.voice_client.is_playing():
-            embed = nextcord.Embed(title="음악이 이미 일시 정지 중이거나 재생 중이지 않습니다.",  color=nextcord.Color(0xFF0000))
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            ctx.voice_client.pause()
+            embed = nextcord.Embed(title="음악을 일시 정지합니다. ⏸️", color=nextcord.Color.yellow())
             await ctx.send(embed=embed)
-
-
-        ctx.voice_client.pause()   # 정지하는 코드
+        else:
+            embed = nextcord.Embed(title="재생 중인 음악이 없어 일시 정지할 수 없습니다. ⛔", color=nextcord.Color.red())
+            await ctx.send(embed=embed)
 
     @commands.command(aliases=['재생'])
     async def resume(self, ctx):
-
-
-        if ctx.voice_client.is_playing() or not ctx.voice_client.is_paused():   
-            embed = nextcord.Embed(title="음악이 이미 재생 중이거나 재생할 음악이 존재하지 않습니다.",  color=nextcord.Color(0xFF0000))
+        if ctx.voice_client and ctx.voice_client.is_paused():
+            ctx.voice_client.resume()
+            embed = nextcord.Embed(title="음악을 다시 재생합니다. ▶️", color=nextcord.Color.green())
+            await ctx.send(embed=embed)
+        else:
+            embed = nextcord.Embed(title="일시 정지된 음악이 없습니다. 🤷‍♂️", color=nextcord.Color.red())
             await ctx.send(embed=embed)
 
-        ctx.voice_client.resume()    # 다시 재생하는 코드
-
-    @play.before_invoke
-    async def ensure_voice(self, ctx):
-        if ctx.voice_client is None:
-            if ctx.author.voice:
-                await ctx.author.voice.channel.connect()
-            else:
-                embed = nextcord.Embed(title="음성 채널에 연결되어 있지 않습니다.",  color=nextcord.Color(0xFF0000))
-                await ctx.send(embed=embed)
-                raise commands.CommandError("작성자가 음성 채널에 연결되지 않았습니다.")
-        elif ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-
-    @commands.command(aliases=['목록'])    #대기열 노래 목록 보기
+    @commands.command(aliases=['목록'])
     async def queue(self, ctx):
         if self.queue:
             queue_titles = '\n'.join(f'{idx + 1}. {song.title}' for idx, song in enumerate(self.queue))
-            embed = nextcord.Embed(title='현재 대기열', description=queue_titles, color=nextcord.Color(0x00ff00))
+            embed = nextcord.Embed(title='🎵 현재 대기열', description=queue_titles, color=nextcord.Color.blue())
         else:
-            embed = nextcord.Embed(title='대기열이 비어 있습니다.', color=nextcord.Color(0xFF0000))
+            embed = nextcord.Embed(title='대기열이 비어 있습니다. 텅~', color=nextcord.Color.red())
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['추가'])    #대기열에 노래 추가
-    async def add(self, ctx, *, url):
-        async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
-            self.queue.append(player)
-            embed = nextcord.Embed(title=f'대기열에 추가됨: {player.title}', color=nextcord.Color(0x00ff00))
-            await ctx.send(embed=embed)
-
- 
- 
-intents = nextcord.Intents.default()
-intents.message_content = True
-
-
-
-
-
 bot.add_cog(Music(bot))
+
 # 봇 실행
-bot.run('')  # 복사한 봇의 토큰을 여기에 넣으세요.
+bot.run('')
