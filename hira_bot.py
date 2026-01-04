@@ -62,13 +62,12 @@ async def out(ctx):
 # ===== yt-dlp / FFmpeg 설정 =====
 ytdl_format_options = {
     "format": "bestaudio/best",
+    # 🔥 유튜브 차단 우회 (이것만!)
+    "cookiefile": "cookies.txt",
     "noplaylist": True,
     "quiet": True,
     "default_search": "auto",
     "source_address": "0.0.0.0",
-
-    # 🔥 유튜브 차단 우회 (이것만!)
-    "cookiefile": "cookies.txt",
 }
 
 ffmpeg_options = {
@@ -203,6 +202,7 @@ if not os.path.exists("cookies.txt"):
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
+
 
 
 
