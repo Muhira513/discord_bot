@@ -62,6 +62,7 @@ async def out(ctx):
 # ===== yt-dlp / FFmpeg 설정 =====
 ytdl_format_options = {
     "format": "bestaudio/best",
+    'cookies': 'cookies.txt',
     "noplaylist": True,
     "quiet": True,
     "default_search": "auto",
@@ -199,3 +200,4 @@ bot.add_cog(Music(bot))
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
+
