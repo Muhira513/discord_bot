@@ -20,5 +20,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 봇 코드
 COPY hira_bot.py .
 
-# ===== 실행 시 쿠키 생성 후 봇 실행 =====
-CMD sh -c 'echo "$YTDLP_COOKIES" > cookies.txt && python hira_bot.py'
+# ===== 실행 =====
+CMD sh -c 'printf "%s" "$YTDLP_COOKIES" > cookies.txt && python hira_bot.py'
