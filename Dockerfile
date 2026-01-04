@@ -1,0 +1,23 @@
+# ===== Python 베이스 이미지 =====
+FROM python:3.11-slim
+
+# ===== 시스템 패키지 설치 (ffmpeg + opus) =====
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libopus0 \
+    libopus-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ===== 작업 디렉토리 =====
+WORKDIR /app
+
+# ===== requirements 설치 =====
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ===== 봇 코드 복사 =====
+COPY hira_bot.py .
+
+# ===== 실행 =====
+CMD ["python", "hira_bot.py"]
