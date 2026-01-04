@@ -5,6 +5,12 @@ import yt_dlp as youtube_dl
 import os
 
 # 🔊 Opus 로딩 확인
+if not nextcord.opus.is_loaded():
+    try:
+        nextcord.opus.load_opus("libopus.so.0")
+    except Exception as e:
+        print("Opus load failed:", e)
+
 print("Opus loaded:", nextcord.opus.is_loaded())
 
 # ===== 인텐트 설정 =====
@@ -55,16 +61,19 @@ async def out(ctx):
 
 # ===== yt-dlp / FFmpeg 설정 =====
 ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',
+    "format": "bestaudio/best",
+    "noplaylist": True,
+    "quiet": True,
+    "default_search": "auto",
+    "source_address": "0.0.0.0",
+
+    # 🔥 핵심: 유튜브 봇 차단 우회
+    "cookiefile": "cookies.txt",
 }
 
 ffmpeg_options = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn',
+    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+    "options": "-vn",
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -72,7 +81,9 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 class YTDLSource(nextcord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
-        self.title = data.get('title')
+        self.data = data
+        self.title = data.get("title")
+        self.url = data.get("url")
 
     @classmethod
     async def from_url(cls, url, *, loop):
@@ -80,11 +91,14 @@ class YTDLSource(nextcord.PCMVolumeTransformer):
             None, lambda: ytdl.extract_info(url, download=False)
         )
 
-        if 'entries' in data:
-            data = data['entries'][0]
+        if data is None:
+            raise RuntimeError("yt-dlp 정보 추출 실패")
+
+        if "entries" in data:
+            data = data["entries"][0]
 
         return cls(
-            nextcord.FFmpegPCMAudio(data['url'], **ffmpeg_options),
+            nextcord.FFmpegPCMAudio(data["url"], **ffmpeg_options),
             data=data
         )
 
@@ -111,7 +125,7 @@ class Music(commands.Cog):
                 await ctx.voice_client.disconnect()
                 await ctx.send("대기열이 비어 있어 퇴장합니다 👋")
 
-    @commands.command(aliases=['노래'])
+    @commands.command(aliases=["노래"])
     async def play(self, ctx, *, url):
         if not ctx.voice_client:
             if not ctx.author.voice:
@@ -129,7 +143,7 @@ class Music(commands.Cog):
                     url, loop=self.bot.loop
                 )
             except Exception as e:
-                await ctx.send(f"❌ 음악 로드 실패: {e}")
+                await ctx.send(f"❌ 음악 로드 실패:\n```{e}```")
                 return
 
         vc = ctx.voice_client
@@ -145,7 +159,7 @@ class Music(commands.Cog):
             )
             await ctx.send(f"🎶 재생 시작: **{player.title}**")
 
-    @commands.command(aliases=['스킵'])
+    @commands.command(aliases=["스킵"])
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.stop()
@@ -153,7 +167,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("❌ 재생 중인 곡이 없습니다.")
 
-    @commands.command(aliases=['중지'])
+    @commands.command(aliases=["중지"])
     async def pause(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.pause()
@@ -161,7 +175,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("❌ 재생 중이 아닙니다.")
 
-    @commands.command(aliases=['재생'])
+    @commands.command(aliases=["재생"])
     async def resume(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_paused():
             ctx.voice_client.resume()
@@ -169,8 +183,8 @@ class Music(commands.Cog):
         else:
             await ctx.send("❌ 일시 정지 상태가 아닙니다.")
 
-    @commands.command(aliases=['목록'])
-    async def queue(self, ctx):
+    @commands.command(aliases=["목록"])
+    async def queue_list(self, ctx):
         if not self.queue:
             await ctx.send("📭 대기열이 비어 있습니다.")
             return
