@@ -4,13 +4,12 @@ import asyncio
 import yt_dlp as youtube_dl
 import os
 
-# 🔊 Opus 로딩 확인
+# 🔊 Opus 로딩
 if not nextcord.opus.is_loaded():
     try:
         nextcord.opus.load_opus("libopus.so.0")
     except Exception as e:
         print("Opus load failed:", e)
-
 print("Opus loaded:", nextcord.opus.is_loaded())
 
 # ===== 인텐트 설정 =====
@@ -32,26 +31,17 @@ async def on_ready():
 # ===== 기본 명령어 =====
 @bot.command()
 async def 따라하기(ctx, *, text):
-    await ctx.send(
-        embed=nextcord.Embed(
-            title='따라하기',
-            description=text,
-            color=0x00ff00
-        )
-    )
+    await ctx.send(text)
 
 @bot.command(aliases=['입장'])
 async def 들어와(ctx):
     if ctx.author.voice and ctx.author.voice.channel:
-        try:
-            await ctx.author.voice.channel.connect()
-            await ctx.send("음성 채널에 연결되었습니다.")
-        except asyncio.TimeoutError:
-            await ctx.send("❌ 음성 채널 연결 시간 초과")
+        await ctx.author.voice.channel.connect()
+        await ctx.send("음성 채널에 연결되었습니다.")
     else:
         await ctx.send("❌ 먼저 음성 채널에 들어가 주세요.")
 
-@bot.command(aliases=['나가', '퇴장'])
+@bot.command(aliases=['나가','퇴장'])
 async def out(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
@@ -60,20 +50,19 @@ async def out(ctx):
         await ctx.send("❌ 봇이 음성 채널에 없습니다.")
 
 # ===== yt-dlp / FFmpeg 설정 =====
-ytdl_format_options = {
+ytdl_opts = {
     "format": "bestaudio/best",
     "noplaylist": True,
     "quiet": True,
     "default_search": "auto",
-    "source_address": "0.0.0.0",
 }
 
-ffmpeg_options = {
+ffmpeg_opts = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn",
 }
 
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+ytdl = youtube_dl.YoutubeDL(ytdl_opts)
 
 class YTDLSource(nextcord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
@@ -84,20 +73,12 @@ class YTDLSource(nextcord.PCMVolumeTransformer):
 
     @classmethod
     async def from_url(cls, url, *, loop):
-        data = await loop.run_in_executor(
-            None, lambda: ytdl.extract_info(url, download=False)
-        )
-
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
         if data is None:
             raise RuntimeError("yt-dlp 정보 추출 실패")
-
         if "entries" in data:
             data = data["entries"][0]
-
-        return cls(
-            nextcord.FFmpegPCMAudio(data["url"], **ffmpeg_options),
-            data=data
-        )
+        return cls(nextcord.FFmpegPCMAudio(data["url"], **ffmpeg_opts), data=data)
 
 # ===== 음악 Cog =====
 class Music(commands.Cog):
@@ -109,12 +90,7 @@ class Music(commands.Cog):
     async def play_next(self, ctx):
         if self.queue:
             player = self.queue.pop(0)
-            ctx.voice_client.play(
-                player,
-                after=lambda e: asyncio.run_coroutine_threadsafe(
-                    self.play_next(ctx), self.bot.loop
-                )
-            )
+            ctx.voice_client.play(player, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop))
             await ctx.send(f"🎵 재생중: **{player.title}**")
         else:
             await asyncio.sleep(60)
@@ -129,31 +105,21 @@ class Music(commands.Cog):
                 await ctx.send("❌ 음성 채널에 먼저 들어가 주세요.")
                 return
             await ctx.author.voice.channel.connect()
-
         if len(self.queue) >= self.MAX_QUEUE:
             await ctx.send("❌ 대기열이 가득 찼습니다.")
             return
-
         async with ctx.typing():
             try:
-                player = await YTDLSource.from_url(
-                    url, loop=self.bot.loop
-                )
+                player = await YTDLSource.from_url(url, loop=self.bot.loop)
             except Exception as e:
-                await ctx.send(f"❌ 음악 로드 실패:\n```{e}```")
+                await ctx.send(f"❌ 음악 로드 실패: {e}")
                 return
-
         vc = ctx.voice_client
         if vc.is_playing():
             self.queue.append(player)
             await ctx.send(f"➕ 대기열 추가: **{player.title}**")
         else:
-            vc.play(
-                player,
-                after=lambda e: asyncio.run_coroutine_threadsafe(
-                    self.play_next(ctx), self.bot.loop
-                )
-            )
+            vc.play(player, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop))
             await ctx.send(f"🎶 재생 시작: **{player.title}**")
 
     @commands.command(aliases=["스킵"])
@@ -185,22 +151,14 @@ class Music(commands.Cog):
         if not self.queue:
             await ctx.send("📭 대기열이 비어 있습니다.")
             return
-
-        msg = "\n".join(
-            f"{i+1}. {song.title}" for i, song in enumerate(self.queue)
-        )
+        msg = "\n".join(f"{i+1}. {song.title}" for i, song in enumerate(self.queue))
         await ctx.send(f"🎵 대기열:\n{msg}")
 
 bot.add_cog(Music(bot))
 
-# ===== 크래시 방지 =====
-if not os.path.exists("cookies.txt"):
-    print("⚠ cookies.txt not found — age-restricted videos may fail")
-
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
-
 
 
 
