@@ -1,11 +1,13 @@
 # ===== Python 베이스 이미지 =====
 FROM python:3.10-slim
 
-# ===== 시스템 패키지 설치 (ffmpeg + opus) =====
+# ===== 시스템 패키지 설치 (ffmpeg + opus + nodejs) =====
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libopus0 \
     libopus-dev \
+    nodejs \
+    npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,6 +20,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ===== 봇 코드 복사 =====
 COPY hira_bot.py .
+
+# ===== yt-dlp 쿠키 (Koyeb Secret 사용) =====
+# YTDLP_COOKIES 라는 Secret에 cookies.txt 전체 내용을 넣어둔 상태여야 함
+RUN echo "$YTDLP_COOKIES" > /app/cookies.txt
 
 # ===== 실행 =====
 CMD ["python", "hira_bot.py"]
