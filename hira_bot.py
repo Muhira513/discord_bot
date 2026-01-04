@@ -62,7 +62,6 @@ async def out(ctx):
 # ===== yt-dlp / FFmpeg 설정 =====
 ytdl_format_options = {
     "format": "bestaudio/best",
-    'cookies': 'cookies.txt',
     "noplaylist": True,
     "quiet": True,
     "default_search": "auto",
@@ -197,7 +196,12 @@ class Music(commands.Cog):
 
 bot.add_cog(Music(bot))
 
+# ===== 크래시 방지 =====
+if not os.path.exists("cookies.txt"):
+    print("⚠ cookies.txt not found — age-restricted videos may fail")
+
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
+
 
