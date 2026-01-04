@@ -50,14 +50,15 @@ async def out(ctx):
         await ctx.send("❌ 봇이 음성 채널에 없습니다.")
 
 # ===== yt-dlp / FFmpeg 설정 =====
-ytdl_opts = {
-    "format": "bestaudio/best",
-    "noplaylist": True,
-    "quiet": True,
-    "default_search": "auto",
-    # 쿠키 없이 공개 영상만 재생 가능
+ydl_opts = {
+    'format': 'bestaudio/best',  # 오디오만 가져오는 설정
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+    'cookiefile': 'cookies.txt', 
 }
-
 ffmpeg_opts = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn",
@@ -160,3 +161,4 @@ bot.add_cog(Music(bot))
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
+
