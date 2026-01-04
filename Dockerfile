@@ -1,20 +1,29 @@
+# ===== Python 베이스 이미지 =====
 FROM python:3.10-slim
 
-# 1. 필수 패키지 (ffmpeg: 소리 재생, nodejs: 유튜브 우회, libopus0: 오디오 코덱) 설치
+# ===== 시스템 패키지 설치 (ffmpeg + opus + nodejs) =====
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libopus0 \
+    libopus-dev \
     nodejs \
+    npm \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# ===== 작업 디렉토리 =====
 WORKDIR /app
 
-# 2. 파이썬 라이브러리 설치
+# ===== requirements 설치 =====
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 3. 프로젝트 파일 복사 (로컬에 있는 최신 cookies.txt가 이때 복사됨)
-COPY . .
+# ===== 봇 코드 복사 =====
+COPY hira_bot.py .
 
-# 4. 실행
-CMD ["python", "hira_bot.py"]]
+# ===== yt-dlp 쿠키 (Koyeb Secret 사용) =====
+# YTDLP_COOKIES 라는 Secret에 cookies.txt 전체 내용을 넣어둔 상태여야 함
+RUN echo "$YTDLP_COOKIES" > /app/cookies.txt
+
+# ===== 실행 =====
+CMD ["python", "hira_bot.py"]
