@@ -1,5 +1,5 @@
 # ===== Python 베이스 이미지 =====
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # ===== 시스템 패키지 설치 (ffmpeg + opus) =====
 RUN apt-get update && apt-get install -y \
