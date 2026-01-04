@@ -55,6 +55,7 @@ ytdl_opts = {
     "noplaylist": True,
     "quiet": True,
     "default_search": "auto",
+    # 쿠키 없이 공개 영상만 재생 가능
 }
 
 ffmpeg_opts = {
@@ -159,8 +160,3 @@ bot.add_cog(Music(bot))
 # ===== 봇 실행 =====
 access_token = os.environ["DISCORD_TOKEN"]
 bot.run(access_token)
-
-
-
-
-
