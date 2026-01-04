@@ -9,15 +9,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ===== 작업 디렉토리 =====
+# 작업 디렉토리
 WORKDIR /app
 
-# ===== requirements 설치 =====
+# requirements 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ===== 봇 코드 복사 =====
+# 봇 코드 복사
 COPY hira_bot.py .
 
-# ===== 실행 =====
+# ===== 봇 실행 =====
 CMD ["python", "hira_bot.py"]
